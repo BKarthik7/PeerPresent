@@ -2,6 +2,8 @@ import { useRef, useState, useEffect } from "react";
 import { usePresentation } from "@/contexts/presentation-context";
 import { Button } from "@/components/ui/button";
 import { Maximize2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { useSocket } from "@/lib/socket";
 
 export function PresentationViewer() {
   const { 
@@ -11,7 +13,11 @@ export function PresentationViewer() {
     isScreenSharing
   } = usePresentation();
   
+  const { user } = useAuth();
+  const [socket, connected] = useSocket();
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const handleFullscreen = () => {
@@ -23,6 +29,91 @@ export function PresentationViewer() {
       setIsFullscreen(false);
     }
   };
+
+  // Initialize WebRTC for receiving screen share
+  useEffect(() => {
+    if (!socket || !connected || user?.isAdmin) return;
+    
+    // Initialize peer connection if not admin (only peers receive screen share)
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+      ],
+    });
+    
+    peerConnectionRef.current = pc;
+    
+    // Handle incoming tracks (screen share)
+    pc.ontrack = (event) => {
+      console.log("Received remote track:", event.streams[0]);
+      if (videoRef.current) {
+        videoRef.current.srcObject = event.streams[0];
+      }
+    };
+    
+    // Handle ICE candidates
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: "ice_candidate",
+          payload: {
+            candidate: event.candidate,
+          },
+        }));
+      }
+    };
+    
+    // Handle WebRTC signaling messages
+    const handleRTCMessage = async (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Handle offer (from admin sharing screen)
+        if (data.type === "offer" && pc.signalingState !== "have-remote-offer") {
+          console.log("Received offer:", data.payload.sdp);
+          await pc.setRemoteDescription(new RTCSessionDescription(data.payload.sdp));
+          
+          // Create and send answer
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: "answer",
+              payload: {
+                sdp: pc.localDescription
+              }
+            }));
+          }
+        }
+        
+        // Handle ICE candidates (from admin)
+        if (data.type === "ice_candidate" && data.payload.candidate) {
+          console.log("Received ICE candidate");
+          pc.addIceCandidate(new RTCIceCandidate(data.payload.candidate))
+            .catch(err => console.error("Error adding ICE candidate:", err));
+        }
+      } catch (err) {
+        console.error("Error handling RTC message:", err);
+      }
+    };
+    
+    if (socket) {
+      socket.addEventListener("message", handleRTCMessage);
+    }
+    
+    return () => {
+      if (socket) {
+        socket.removeEventListener("message", handleRTCMessage);
+      }
+      
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+    };
+  }, [socket, connected, user]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -59,9 +150,13 @@ export function PresentationViewer() {
             </p>
           </div>
         ) : (
-          <div id="remote-video-container" className="w-full h-full flex items-center justify-center">
-            {/* Remote video will be inserted here by WebRTC peers */}
-            <video id="remote-video" autoPlay playsInline className="max-w-full max-h-full object-contain"></video>
+          <div className="w-full h-full flex items-center justify-center">
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              className="max-w-full max-h-full object-contain"
+            ></video>
           </div>
         )}
       </div>

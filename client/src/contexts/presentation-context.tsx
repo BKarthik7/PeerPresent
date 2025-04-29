@@ -9,8 +9,13 @@ import type { Team, PresentationSession, Evaluation, AIFeedback } from "@shared/
 declare global {
   interface Window {
     screenShareStream: MediaStream | null;
+    rtcPeer: RTCPeerConnection | null;
   }
 }
+
+// Initialize window global variables
+window.screenShareStream = window.screenShareStream || null;
+window.rtcPeer = window.rtcPeer || null;
 
 type MemberType = { name: string; usn: string };
 
@@ -214,6 +219,52 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
         throw new Error("Not connected to server");
       }
 
+      const peer = window.rtcPeer;
+      if (!peer) {
+        // Initialize peer if not already initialized
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" },
+          ],
+        });
+        
+        window.rtcPeer = pc;
+        
+        // Handle ICE candidates
+        pc.onicecandidate = (event) => {
+          if (event.candidate && socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: "ice_candidate",
+              payload: {
+                candidate: event.candidate,
+              },
+            }));
+          }
+        };
+        
+        // Set up message handlers for WebRTC signaling
+        if (socket) {
+          const handleRTCMessage = (event: MessageEvent) => {
+            try {
+              const data = JSON.parse(event.data);
+              
+              if (data.type === "answer" && pc.signalingState !== "stable") {
+                pc.setRemoteDescription(new RTCSessionDescription(data.payload.sdp));
+              }
+              
+              if (data.type === "ice_candidate") {
+                pc.addIceCandidate(new RTCIceCandidate(data.payload.candidate));
+              }
+            } catch (err) {
+              console.error("Error handling RTC message:", err);
+            }
+          };
+          
+          socket.addEventListener("message", handleRTCMessage);
+        }
+      }
+
       // Request screen sharing permission from browser
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
@@ -222,13 +273,40 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
       // Store the media stream for later reference
       window.screenShareStream = mediaStream;
-
+      
+      // Add tracks to peer connection
       // Notify server that screen sharing has started
       if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "screen_share_start" }));
+        socket.send(JSON.stringify({ 
+          type: "screen_share_start"
+        }));
       } else {
         console.warn("Socket not open, unable to send screen share start message");
       }
+      
+      // Handle WebRTC if peer connection exists
+      if (window.rtcPeer) {
+        mediaStream.getTracks().forEach(track => {
+          if (window.rtcPeer) {
+            window.rtcPeer.addTrack(track, mediaStream);
+          }
+        });
+        
+        // Create and send offer
+        const offer = await window.rtcPeer.createOffer();
+        await window.rtcPeer.setLocalDescription(offer);
+          
+        // Send the WebRTC offer if socket is open
+        if (socket.readyState === WebSocket.OPEN && window.rtcPeer.localDescription) {
+          socket.send(JSON.stringify({
+            type: "offer",
+            payload: {
+              sdp: window.rtcPeer.localDescription
+            }
+          }));
+        }
+      }
+      
       setIsScreenSharing(true);
 
       // Handle when user stops sharing screen
@@ -239,8 +317,6 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
         };
       });
 
-      // The actual WebRTC connection would be handled in peer.ts
-      // This is simplified for this implementation
       console.log("Screen sharing started successfully");
       toast({
         title: "Screen sharing started",

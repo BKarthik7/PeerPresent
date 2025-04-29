@@ -729,6 +729,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             break;
             
+          case "offer":
+            // Only admins can send offers (for screen sharing)
+            if (!client.isAdmin) {
+              ws.send(JSON.stringify({
+                type: "error",
+                payload: { message: "Only admins can initiate screen sharing" }
+              }));
+              return;
+            }
+            
+            // Broadcast offer to all non-admin clients
+            clients.forEach((c, socket) => {
+              if (!c.isAdmin && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                  type: "offer",
+                  payload: message.payload
+                }));
+              }
+            });
+            break;
+            
+          case "answer":
+            // Only peers can send answers
+            if (client.isAdmin) {
+              ws.send(JSON.stringify({
+                type: "error",
+                payload: { message: "Only peers can send answers" }
+              }));
+              return;
+            }
+            
+            // Send answer to all admin clients
+            clients.forEach((c, socket) => {
+              if (c.isAdmin && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                  type: "answer",
+                  payload: message.payload
+                }));
+              }
+            });
+            break;
+            
+          case "ice_candidate":
+            // Send ICE candidate to all admin clients if from peer
+            if (!client.isAdmin) {
+              clients.forEach((c, socket) => {
+                if (c.isAdmin && socket.readyState === WebSocket.OPEN) {
+                  socket.send(JSON.stringify({
+                    type: "ice_candidate",
+                    payload: message.payload
+                  }));
+                }
+              });
+            } 
+            // Send ICE candidate to all peer clients if from admin
+            else {
+              clients.forEach((c, socket) => {
+                if (!c.isAdmin && socket.readyState === WebSocket.OPEN) {
+                  socket.send(JSON.stringify({
+                    type: "ice_candidate",
+                    payload: message.payload
+                  }));
+                }
+              });
+            }
+            break;
+            
           case "screen_share_stop":
             // Only admins can stop screen share
             if (!client.isAdmin) {
