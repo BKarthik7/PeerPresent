@@ -46,9 +46,10 @@ const PresentationContext = createContext<PresentationContextType | undefined>(u
 export function PresentationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  // Construct WebSocket URL with sessionId if user is authenticated
+  // Only connect to WebSocket if user is authenticated
   const socketUrl = user && user.id ? `${wsUrl}?sessionId=${user.id}` : null;
-  const [socket, connected] = useSocket(socketUrl || wsUrl);
+  // Don't fallback to default URL if user is not authenticated, wait until authenticated
+  const [socket, connected] = useSocket(socketUrl || '');
   
   const [activeSession, setActiveSession] = useState<PresentationSession | null>(null);
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);

@@ -246,7 +246,8 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
     resetTimer,
     timerSeconds,
     isTimerRunning,
-    averageScores
+    averageScores,
+    peers
   } = usePresentation();
   
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
@@ -480,6 +481,23 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
             <p className="text-xs text-muted-foreground">
               Recommended time: 15 minutes per presentation
             </p>
+          </div>
+          
+          <div className="border-t border-border pt-4">
+            <h3 className="text-sm font-medium mb-2">Connected Peers</h3>
+            {peers.length > 0 ? (
+              <div className="mb-3">
+                <ul className="text-sm list-disc pl-6">
+                  {peers.map(peer => (
+                    <li key={peer.id}>{peer.name}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground mb-3 italic">
+                No peers connected at the moment. Waiting for participants...
+              </div>
+            )}
           </div>
           
           <div className="border-t border-border pt-4">
