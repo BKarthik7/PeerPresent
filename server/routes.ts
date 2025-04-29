@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
@@ -9,6 +9,23 @@ import {
   insertTeamSchema,
   insertEvaluationSchema
 } from "@shared/schema";
+
+// Extend Express Request to include session
+declare module 'express-session' {
+  interface SessionData {
+    userId?: number;
+    isAdmin?: boolean;
+  }
+}
+
+// Simplify request type with session
+type RequestWithSession = Request & { 
+  session: {
+    userId?: number;
+    isAdmin?: boolean;
+    destroy: (callback: (err: Error | null) => void) => void;
+  } 
+};
 
 type Client = {
   socket: WebSocket;
@@ -35,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== REST API ROUTES =====
   
   // Auth routes
-  app.post("/api/auth/admin-login", async (req, res) => {
+  app.post("/api/auth/admin-login", async (req: RequestWithSession, res) => {
     try {
       const { password } = req.body;
       
@@ -70,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/auth/peer-login", async (req, res) => {
+  app.post("/api/auth/peer-login", async (req: RequestWithSession, res) => {
     try {
       const validatedData = insertPeerSchema.parse(req.body);
       const { name, usn } = validatedData;
@@ -115,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", (req: RequestWithSession, res) => {
     req.session.destroy((err) => {
       if (err) {
         console.error("Logout error:", err);
@@ -125,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
-  app.get("/api/auth/me", async (req, res) => {
+  app.get("/api/auth/me", async (req: RequestWithSession, res) => {
     if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -164,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Team routes
-  app.post("/api/teams", async (req, res) => {
+  app.post("/api/teams", async (req: RequestWithSession, res) => {
     try {
       if (!req.session.userId || !req.session.isAdmin) {
         return res.status(403).json({ message: "Not authorized" });
@@ -256,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const user = await storage.getUserById(parseInt(sessionId));
           if (user) {
             userId = user.id;
-            isAdmin = user.isAdmin;
+            isAdmin = user.isAdmin || false;
           }
         } catch (error) {
           console.error("Error getting user from session:", error);
