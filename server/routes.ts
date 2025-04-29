@@ -266,20 +266,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionId = params.get('sessionId');
       
       if (sessionId) {
-        // In a real app, validate the session ID against your session store
-        // For this example, we'll just use it directly
-        // Get user info from your session store
-        // This is a simplified example
+        console.log(`WebSocket connection with sessionId: ${sessionId}`);
+        // Validate the session ID
         try {
-          const user = await storage.getUserById(parseInt(sessionId));
-          if (user) {
-            userId = user.id;
-            isAdmin = user.isAdmin || false;
+          const sessionIdNum = parseInt(sessionId);
+          if (!isNaN(sessionIdNum)) {
+            const user = await storage.getUserById(sessionIdNum);
+            if (user) {
+              console.log(`Found user for session ID: ${sessionId}, isAdmin: ${user.isAdmin}`);
+              userId = user.id;
+              isAdmin = user.isAdmin || false;
+            } else {
+              console.log(`No user found for session ID: ${sessionId}`);
+            }
+          } else {
+            console.log(`Invalid session ID format: ${sessionId}`);
           }
         } catch (error) {
           console.error("Error getting user from session:", error);
         }
+      } else {
+        console.log("No sessionId provided in WebSocket connection URL");
       }
+    } else {
+      console.log("No query parameters in WebSocket connection URL");
     }
     
     // Store client info
