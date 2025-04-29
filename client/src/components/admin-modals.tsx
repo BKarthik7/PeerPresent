@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { X, Download, Play, Pause, RefreshCw } from "lucide-react";
+import { TeamForm } from "@/components/forms/team-form";
+import { X, Download, Play, Pause, RefreshCw, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -181,51 +182,133 @@ function TeamUploadModal({ open, setOpen }: { open: boolean; setOpen: (open: boo
     }
   };
 
+  const [activeTab, setActiveTab] = useState<"csv" | "text" | "form">("csv");
+  
+  const handleTeamFormSubmit = async (team: Omit<Team, "id" | "createdBy">) => {
+    try {
+      setIsUploading(true);
+      await uploadTeams([team]);
+      
+      setOpen(false);
+      setCsvContent("");
+      setManualEntry("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      
+      toast({
+        title: "Team created successfully",
+        description: `Team ${team.name} has been added to the system.`,
+      });
+    } catch (error) {
+      console.error("Team creation error:", error);
+      toast({
+        title: "Failed to create team",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Upload Team Details</DialogTitle>
           <DialogDescription>
-            Upload team information via CSV file or manual entry
+            Upload team information via CSV file or create teams manually
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 my-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">CSV File</label>
-            <Input 
-              type="file" 
-              accept=".csv" 
-              ref={fileInputRef}
-              onChange={handleFileChange} 
-            />
-            <p className="text-xs text-muted-foreground">
-              Upload a CSV file with team details (Name, USN, Team Number, Project Title)
-            </p>
+          {/* Tab selection */}
+          <div className="flex space-x-2 border-b">
+            <button 
+              className={`px-4 py-2 text-sm font-medium ${activeTab === "csv" ? "border-b-2 border-primary" : "text-muted-foreground"}`}
+              onClick={() => setActiveTab("csv")}
+            >
+              Upload CSV
+            </button>
+            <button 
+              className={`px-4 py-2 text-sm font-medium ${activeTab === "text" ? "border-b-2 border-primary" : "text-muted-foreground"}`}
+              onClick={() => setActiveTab("text")}
+            >
+              Text Format
+            </button>
+            <button 
+              className={`px-4 py-2 text-sm font-medium ${activeTab === "form" ? "border-b-2 border-primary" : "text-muted-foreground"}`}
+              onClick={() => setActiveTab("form")}
+            >
+              Create Team
+            </button>
           </div>
           
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Or Enter Manually</label>
-            <Textarea 
-              placeholder="Team 1: ProjectTitle, Name1 (USN1), Name2 (USN2)..." 
-              className="h-32 resize-none"
-              value={manualEntry}
-              onChange={(e) => setManualEntry(e.target.value)} 
-            />
-          </div>
+          {/* CSV Upload Tab */}
+          {activeTab === "csv" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">CSV File</label>
+              <Input 
+                type="file" 
+                accept=".csv" 
+                ref={fileInputRef}
+                onChange={handleFileChange} 
+              />
+              <p className="text-xs text-muted-foreground">
+                Upload a CSV file with team details (Name, USN, Team Number, Project Title)
+              </p>
+              
+              <div className="flex justify-end mt-6">
+                <Button 
+                  onClick={handleUpload}
+                  disabled={isUploading || !csvContent}
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  {isUploading ? "Uploading..." : "Upload CSV"}
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Text Entry Tab */}
+          {activeTab === "text" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Enter Team Details as Text</label>
+              <Textarea 
+                placeholder="Team 1: ProjectTitle, Name1 (USN1), Name2 (USN2)..." 
+                className="h-32 resize-none"
+                value={manualEntry}
+                onChange={(e) => setManualEntry(e.target.value)} 
+              />
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Format each team on a new line as follows:</p>
+                <p><code className="bg-muted px-1 py-0.5 rounded">Team [Number]: [Project Title], [Name1] ([USN1]), [Name2] ([USN2]), ...</code></p>
+                <p>Example: <code className="bg-muted px-1 py-0.5 rounded">Team 1: Smart Home Automation, John Doe (1MS22CS001), Jane Smith (1MS22CS002)</code></p>
+              </div>
+              
+              <div className="flex justify-end mt-6">
+                <Button 
+                  onClick={handleUpload}
+                  disabled={isUploading || !manualEntry}
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  {isUploading ? "Uploading..." : "Upload Teams"}
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Form Entry Tab */}
+          {activeTab === "form" && (
+            <TeamForm onSubmit={handleTeamFormSubmit} />
+          )}
         </div>
         
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button 
-            onClick={handleUpload}
-            disabled={isUploading || (!csvContent && !manualEntry)}
-          >
-            {isUploading ? "Uploading..." : "Upload"}
-          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
