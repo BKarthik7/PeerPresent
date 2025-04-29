@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import type { Evaluation, Team } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "sk-" });
+// The newest OpenAI model is "gpt-4o" which was released May 13, 2024
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function generateAIFeedback(
   evaluations: Evaluation[],
@@ -67,7 +67,7 @@ Each point should be a complete, specific, and actionable sentence. Focus on pat
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    const result = JSON.parse(response.choices[0].message.content || '{"strengths":[],"improvements":[]}');
 
     return {
       strengths: result.strengths,
