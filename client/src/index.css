@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 97%;
+  --foreground: 240 10% 4%;
+  --muted: 220 14.3% 95.9%;
+  --muted-foreground: 220 8.9% 46%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 4%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --primary: 217 89% 50.6%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 142 72% 43%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 4 91% 56%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 217 89% 50.6%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 217 89% 50.6%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 142 72% 43%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 4 91% 56%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 217 89% 50.6%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Roboto', system-ui, sans-serif;
+    font-size: 16px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Google Sans', 'Roboto', system-ui, sans-serif;
+    font-weight: 500;
+  }
+}
+
+.form-input, .form-select {
+  @apply rounded border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn {
+  @apply font-medium rounded transition-all duration-200;
+}
+
+.rating-circle {
+  @apply cursor-pointer transition-all duration-200;
+}
+
+.rating-circle:hover {
+  @apply transform scale-110;
+}
+
+.rating-circle.selected {
+  @apply transform scale-110;
+}
