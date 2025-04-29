@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { usePresentation } from "@/contexts/presentation-context";
+import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { TeamForm } from "@/components/forms/team-form";
-import { X, Download, Play, Pause, RefreshCw, Upload } from "lucide-react";
+import { useSocket, wsUrl } from "@/lib/socket";
+import { X, Download, Play, Pause, RefreshCw, Upload, Clipboard } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -336,6 +338,11 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
     isScreenSharing
   } = usePresentation();
   
+  // Socket for sending evaluation commands
+  const { user } = useAuth();
+  const socketUrl = user && user.id ? `${wsUrl}?sessionId=${user.id}` : '';
+  const [socket, connected] = useSocket(socketUrl);
+  
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -468,6 +475,58 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const handleStartEvaluation = () => {
+    if (!activeSession || !activeTeam) {
+      toast({
+        title: "No active presentation",
+        description: "There is no active presentation session to evaluate",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!socket || !connected) {
+      toast({
+        title: "Not connected to server",
+        description: "Could not start evaluation as the server connection is not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Send message to notify all peers to start their evaluation
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: "start_evaluation",
+          payload: {
+            teamId: activeTeam.id,
+            teamName: activeTeam.name,
+            projectTitle: activeTeam.projectTitle
+          }
+        }));
+        
+        toast({
+          title: "Evaluation started",
+          description: "All peers have been notified to start their evaluations",
+        });
+      } else {
+        toast({
+          title: "Connection error",
+          description: "WebSocket connection not open. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Evaluation start error:", error);
+      toast({
+        title: "Failed to start evaluation",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
     }
   };
   
@@ -666,6 +725,27 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
               </div>
             )}
           </div>
+          
+          {activeSession && (
+            <div className="border-t border-border pt-4">
+              <h3 className="text-sm font-medium mb-2">Evaluation Controls</h3>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Start the evaluation process for all connected peers
+                </p>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="bg-accent text-white hover:bg-accent/90 mr-2"
+                  onClick={handleStartEvaluation}
+                  disabled={isLoading || peers.length === 0}
+                >
+                  <Clipboard className="h-4 w-4 mr-1" />
+                  Start Peer Evaluations
+                </Button>
+              </div>
+            </div>
+          )}
           
           <div className="border-t border-border pt-4">
             <h3 className="text-sm font-medium mb-2">Evaluation Status</h3>

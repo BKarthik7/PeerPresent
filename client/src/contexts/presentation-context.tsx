@@ -128,6 +128,15 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
         description: "The presenter has stopped sharing their screen",
       });
     };
+    
+    const handleStartEvaluation = (data: { teamId: number, teamName: string, projectTitle: string }) => {
+      if (user?.isAdmin) return; // Only peers should see this
+      
+      toast({
+        title: "Evaluation Started",
+        description: `The admin has requested evaluations for ${data.teamName}. Please submit your feedback.`,
+      });
+    };
 
     const handleSocketMessage = (event: MessageEvent) => {
       try {
@@ -162,6 +171,9 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
             if (!user?.isAdmin) { // Only show this toast for non-admin users (peers)
               handleScreenShareStop();
             }
+            break;
+          case "start_evaluation":
+            handleStartEvaluation(message.payload);
             break;
           case "error":
             toast({
