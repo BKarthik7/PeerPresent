@@ -360,7 +360,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const client = clients.get(ws);
         if (!client) return;
         
-        const data = JSON.parse(message.toString());
+        // Convert Buffer/ArrayBuffer to string
+        const messageStr = message.toString();
+        const data = JSON.parse(messageStr);
         console.log('Received:', data);
         
         switch (data.type) {
