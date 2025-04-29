@@ -396,11 +396,32 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
     
     try {
       setIsLoading(true);
+      
+      // First start the presentation session
       await startPresentation(Number(selectedTeamId));
-      toast({
-        title: "Presentation started",
-        description: "The presentation session has been started",
-      });
+      
+      // Then attempt to start screen sharing
+      try {
+        const stream = await startScreenShare();
+        
+        if (stream) {
+          toast({
+            title: "Presentation started",
+            description: "The presentation session has been started with screen sharing",
+          });
+        } else {
+          toast({
+            title: "Presentation started",
+            description: "The presentation session has been started, but screen sharing couldn't be initiated. You can try again using the screen share button.",
+          });
+        }
+      } catch (screenError) {
+        console.error("Screen sharing error:", screenError);
+        toast({
+          title: "Presentation started",
+          description: "The presentation session has been started, but screen sharing couldn't be initiated. You can try again using the screen share button.",
+        });
+      }
     } catch (error) {
       console.error("Start presentation error:", error);
       toast({
@@ -425,7 +446,15 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
     
     try {
       setIsLoading(true);
+      
+      // If screen is being shared, stop it first
+      if (isScreenSharing) {
+        stopScreenShare();
+      }
+      
+      // Then end the presentation
       await endPresentation();
+      
       toast({
         title: "Presentation ended",
         description: "The presentation session has been ended",
@@ -519,7 +548,7 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
                 <SelectValue placeholder="-- Select a team --" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="placeholder" disabled>-- Select a team --</SelectItem>
+                <SelectItem value="" disabled>-- Select a team --</SelectItem>
                 {teams.map(team => (
                   <SelectItem key={team.id} value={team.id.toString()}>
                     {team.name}: {team.projectTitle}
@@ -568,6 +597,58 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
               Recommended time: 15 minutes per presentation
             </p>
           </div>
+          
+          {activeSession && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Screen Sharing</label>
+              <div className="flex items-center">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className={`bg-primary text-white hover:bg-primary/90 mr-2 ${isScreenSharing ? 'opacity-50' : ''}`}
+                  onClick={async () => {
+                    try {
+                      await startScreenShare();
+                      toast({
+                        title: "Screen sharing started",
+                        description: "Your screen is now being shared with peers",
+                      });
+                    } catch (error) {
+                      console.error("Screen sharing error:", error);
+                      toast({
+                        title: "Screen sharing failed",
+                        description: error instanceof Error ? error.message : "Failed to start screen sharing",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  disabled={isLoading || isScreenSharing}
+                >
+                  {isScreenSharing ? "Sharing Screen" : "Start Screen Share"}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mr-2"
+                  onClick={() => {
+                    stopScreenShare();
+                    toast({
+                      title: "Screen sharing stopped",
+                      description: "You've stopped sharing your screen",
+                    });
+                  }}
+                  disabled={!isScreenSharing}
+                >
+                  Stop Sharing
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isScreenSharing 
+                  ? "Your screen is currently being shared with all connected peers" 
+                  : "Share your screen with all connected peers"}
+              </p>
+            </div>
+          )}
           
           <div className="border-t border-border pt-4">
             <h3 className="text-sm font-medium mb-2">Connected Peers</h3>
