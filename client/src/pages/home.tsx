@@ -41,7 +41,6 @@ export default function Home() {
       <div className="min-h-screen flex flex-col">
         <Header 
           onUploadTeams={() => setTeamUploadOpen(true)}
-          onControlPresentation={() => setPresentationControlOpen(true)}
         />
         
         <main className="flex-grow flex flex-col p-6">
@@ -119,8 +118,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header 
-        onUploadTeams={() => setTeamUploadOpen(true)}
-        onControlPresentation={() => setPresentationControlOpen(true)}
+        onUploadTeams={() => {}}
       />
       
       <main className="flex-grow flex flex-col md:flex-row">

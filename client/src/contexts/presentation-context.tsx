@@ -173,9 +173,13 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
     socket.addEventListener("message", handleSocketMessage);
 
-    // Request initial state when connecting
-    if (connected) {
-      socket.send(JSON.stringify({ type: "get_state" }));
+    // Request initial state when connecting, but only if socket is in OPEN state
+    if (connected && socket.readyState === WebSocket.OPEN) {
+      try {
+        socket.send(JSON.stringify({ type: "get_state" }));
+      } catch (error) {
+        console.error("Error sending initial state request:", error);
+      }
     }
 
     return () => {
@@ -220,7 +224,11 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
       window.screenShareStream = mediaStream;
 
       // Notify server that screen sharing has started
-      socket.send(JSON.stringify({ type: "screen_share_start" }));
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "screen_share_start" }));
+      } else {
+        console.warn("Socket not open, unable to send screen share start message");
+      }
       setIsScreenSharing(true);
 
       // Handle when user stops sharing screen
@@ -261,7 +269,11 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
     }
 
     if (socket && connected) {
-      socket.send(JSON.stringify({ type: "screen_share_stop" }));
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "screen_share_stop" }));
+      } else {
+        console.warn("Socket not open, unable to send screen share stop message");
+      }
       setIsScreenSharing(false);
       
       toast({
@@ -291,10 +303,14 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
         submittedAt: new Date().toISOString(),
       };
 
-      socket.send(JSON.stringify({ 
-        type: "submit_evaluation", 
-        payload 
-      }));
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ 
+          type: "submit_evaluation", 
+          payload 
+        }));
+      } else {
+        throw new Error("WebSocket connection not open. Please try again.");
+      }
 
       setHasSubmittedEvaluation(true);
       
