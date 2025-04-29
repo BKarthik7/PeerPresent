@@ -5,6 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import { wsUrl } from "@/lib/socket";
 import type { Team, PresentationSession, Evaluation, AIFeedback } from "@shared/schema";
 
+// Define custom types for the window object
+declare global {
+  interface Window {
+    screenShareStream: MediaStream | null;
+  }
+}
+
 type MemberType = { name: string; usn: string };
 
 type PresentationContextType = {
@@ -14,7 +21,7 @@ type PresentationContextType = {
   feedback: AIFeedback | null;
   isScreenSharing: boolean;
   peers: { id: number; name: string }[];
-  startScreenShare: () => Promise<void>;
+  startScreenShare: () => Promise<MediaStream | null>;
   stopScreenShare: () => void;
   submitEvaluation: (evaluation: Omit<Evaluation, "id" | "sessionId" | "peerId" | "submittedAt">) => Promise<void>;
   startPresentation: (teamId: number) => Promise<void>;
@@ -192,10 +199,7 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
       // Request screen sharing permission from browser
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { 
-          cursor: "always",
-          displaySurface: "monitor"
-        },
+        video: true,
         audio: true,
       });
 
@@ -237,7 +241,7 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
   const stopScreenShare = () => {
     // Stop all tracks in the media stream
     if (window.screenShareStream) {
-      window.screenShareStream.getTracks().forEach(track => {
+      window.screenShareStream.getTracks().forEach((track: MediaStreamTrack) => {
         track.stop();
       });
       window.screenShareStream = null;

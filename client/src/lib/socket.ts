@@ -8,6 +8,7 @@ export const wsUrl = (() => {
 export function useSocket(url: string): [WebSocket | null, boolean] {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   useEffect(() => {
     if (!url) {
@@ -15,52 +16,75 @@ export function useSocket(url: string): [WebSocket | null, boolean] {
       return;
     }
 
-    console.log("Connecting to WebSocket:", url);
     let ws: WebSocket;
+    let reconnectTimer: NodeJS.Timeout | null = null;
+    let destroyed = false; // Flag to track if the effect cleanup has run
     
-    try {
-      ws = new WebSocket(url);
+    const connect = () => {
+      if (destroyed) return;
       
-      ws.addEventListener("open", () => {
-        console.log("WebSocket connected successfully");
-        setConnected(true);
-      });
-  
-      ws.addEventListener("close", (event) => {
-        console.log(`WebSocket disconnected with code: ${event.code}, reason: ${event.reason || 'none'}`);
+      console.log(`Connecting to WebSocket (attempt ${reconnectAttempt + 1}):`, url);
+      
+      try {
+        ws = new WebSocket(url);
+        
+        ws.addEventListener("open", () => {
+          console.log("WebSocket connected successfully");
+          setConnected(true);
+          setReconnectAttempt(0); // Reset reconnect attempts on successful connection
+        });
+    
+        ws.addEventListener("close", (event) => {
+          if (destroyed) return;
+          
+          console.log(`WebSocket disconnected with code: ${event.code}, reason: ${event.reason || 'none'}`);
+          setConnected(false);
+          
+          // Calculate exponential backoff delay (capped at 30 seconds)
+          const backoffDelay = Math.min(1000 * Math.pow(1.5, reconnectAttempt), 30000);
+          console.log(`Reconnecting in ${backoffDelay / 1000} seconds...`);
+          
+          // Attempt to reconnect with exponential backoff
+          reconnectTimer = setTimeout(() => {
+            setReconnectAttempt(prev => prev + 1);
+            setSocket(null); // This will trigger the effect to run again
+          }, backoffDelay);
+        });
+    
+        ws.addEventListener("error", (error) => {
+          console.error("WebSocket error:", error);
+          // Error handling is done by the close event which follows
+        });
+    
+        setSocket(ws);
+      } catch (error) {
+        console.error("Error creating WebSocket:", error);
         setConnected(false);
         
-        // Attempt to reconnect after a delay (increasing delay for successive failures)
-        setTimeout(() => {
-          console.log("Attempting to reconnect...");
-          setSocket(null);
-        }, 3000);
-      });
-  
-      ws.addEventListener("error", (error) => {
-        console.error("WebSocket error:", error);
-      });
-  
-      setSocket(ws);
-    } catch (error) {
-      console.error("Error creating WebSocket:", error);
-      setConnected(false);
-      
-      // Attempt to reconnect after a delay on connection error
-      setTimeout(() => {
-        console.log("Attempting to reconnect after error...");
-        setSocket(null);
-      }, 5000);
-      
-      return;
-    }
+        if (!destroyed) {
+          // Attempt to reconnect after a delay on connection error
+          reconnectTimer = setTimeout(() => {
+            setReconnectAttempt(prev => prev + 1);
+            setSocket(null);
+          }, 5000);
+        }
+      }
+    };
+
+    connect();
 
     return () => {
+      destroyed = true;
+      
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      
       if (ws && ws.readyState !== WebSocket.CLOSED) {
         ws.close();
       }
     };
-  }, [url]);
+  }, [url, reconnectAttempt]);
 
   return [socket, connected];
 }
