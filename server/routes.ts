@@ -7,7 +7,8 @@ import { z } from "zod";
 import { 
   insertPeerSchema, 
   insertTeamSchema,
-  insertEvaluationSchema
+  insertEvaluationSchema,
+  peerLoginSchema
 } from "@shared/schema";
 
 // Extend Express Request to include session
@@ -89,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/auth/peer-login", async (req: RequestWithSession, res) => {
     try {
-      const validatedData = insertPeerSchema.parse(req.body);
+      const validatedData = peerLoginSchema.parse(req.body);
       const { name, usn } = validatedData;
       
       // Check if peer exists
