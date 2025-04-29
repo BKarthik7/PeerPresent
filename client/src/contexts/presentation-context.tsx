@@ -192,9 +192,15 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
       // Request screen sharing permission from browser
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: { 
+          cursor: "always",
+          displaySurface: "monitor"
+        },
         audio: true,
       });
+
+      // Store the media stream for later reference
+      window.screenShareStream = mediaStream;
 
       // Notify server that screen sharing has started
       socket.send(JSON.stringify({ type: "screen_share_start" }));
@@ -210,7 +216,13 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
       // The actual WebRTC connection would be handled in peer.ts
       // This is simplified for this implementation
-
+      console.log("Screen sharing started successfully");
+      toast({
+        title: "Screen sharing started",
+        description: "Your screen is now being shared with connected peers",
+      });
+      
+      return mediaStream;
     } catch (error) {
       console.error("Screen sharing error:", error);
       toast({
@@ -218,13 +230,27 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
         description: error instanceof Error ? error.message : "Failed to start screen sharing",
         variant: "destructive",
       });
+      return null;
     }
   };
 
   const stopScreenShare = () => {
+    // Stop all tracks in the media stream
+    if (window.screenShareStream) {
+      window.screenShareStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      window.screenShareStream = null;
+    }
+
     if (socket && connected) {
       socket.send(JSON.stringify({ type: "screen_share_stop" }));
       setIsScreenSharing(false);
+      
+      toast({
+        title: "Screen sharing stopped",
+        description: "Your screen is no longer being shared",
+      });
     }
   };
 

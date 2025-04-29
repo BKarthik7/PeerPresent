@@ -516,7 +516,7 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
                 <SelectValue placeholder="-- Select a team --" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">-- Select a team --</SelectItem>
+                <SelectItem value="placeholder" disabled>-- Select a team --</SelectItem>
                 {teams.map(team => (
                   <SelectItem key={team.id} value={team.id.toString()}>
                     {team.name}: {team.projectTitle}
