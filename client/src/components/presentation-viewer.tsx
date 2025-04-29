@@ -3,7 +3,7 @@ import { usePresentation } from "@/contexts/presentation-context";
 import { Button } from "@/components/ui/button";
 import { Maximize2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { useSocket } from "@/lib/socket";
+import { useSocket, wsUrl } from "@/lib/socket";
 
 export function PresentationViewer() {
   const { 
@@ -14,7 +14,8 @@ export function PresentationViewer() {
   } = usePresentation();
   
   const { user } = useAuth();
-  const [socket, connected] = useSocket();
+  const socketUrl = user ? `${wsUrl}?sessionId=${user.id}` : '';
+  const [socket, connected] = useSocket(socketUrl);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);

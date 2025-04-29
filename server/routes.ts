@@ -815,6 +815,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
             break;
+            
+          case "start_evaluation":
+            // Only admins can start evaluations
+            if (!client.isAdmin) {
+              ws.send(JSON.stringify({
+                type: "error",
+                payload: { message: "Only admins can start evaluations" }
+              }));
+              return;
+            }
+            
+            // Broadcast evaluation start to all peer clients
+            clients.forEach((c, socket) => {
+              if (!c.isAdmin && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                  type: "start_evaluation",
+                  payload: message.payload // Pass along team information
+                }));
+              }
+            });
+            break;
         }
       } catch (error) {
         console.error("WebSocket message error:", error);
