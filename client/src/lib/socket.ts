@@ -26,11 +26,11 @@ export function useSocket(url: string): [WebSocket | null, boolean] {
         setConnected(true);
       });
   
-      ws.addEventListener("close", () => {
-        console.log("WebSocket disconnected");
+      ws.addEventListener("close", (event) => {
+        console.log(`WebSocket disconnected with code: ${event.code}, reason: ${event.reason || 'none'}`);
         setConnected(false);
         
-        // Attempt to reconnect after a delay
+        // Attempt to reconnect after a delay (increasing delay for successive failures)
         setTimeout(() => {
           console.log("Attempting to reconnect...");
           setSocket(null);

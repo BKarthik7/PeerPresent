@@ -333,6 +333,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Send current state to the client
     sendState(ws);
     
+    // Broadcast peer list update to admins if a non-admin connected
+    if (!isAdmin && userId > 0) {
+      console.log(`New peer connected with userId: ${userId}`);
+      
+      // Get updated peer list
+      const peersList = await getPeersList();
+      
+      // Send update to all admin clients
+      clients.forEach((c, socket) => {
+        if (c.isAdmin && socket.readyState === WebSocket.OPEN) {
+          console.log(`Broadcasting peer update to admin`);
+          socket.send(JSON.stringify({
+            type: "peers_update",
+            payload: {
+              peers: peersList
+            }
+          }));
+        }
+      });
+    }
+    
     // Handle messages from client
     ws.on('message', async (message) => {
       try {
@@ -734,19 +755,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     // Handle disconnection
-    ws.on('close', async () => {
-      console.log('Client disconnected');
+    ws.on('close', async (code, reason) => {
       const client = clients.get(ws);
+      const clientType = client?.isAdmin ? 'admin' : (client && client.userId > 0 ? 'peer' : 'unknown');
+      console.log(`Client disconnected: ${clientType} with userId: ${client?.userId ?? 'none'}, code: ${code}, reason: ${reason || 'none'}`);
+      
       clients.delete(ws);
       
       // If a peer disconnected, notify all admins
       if (client && !client.isAdmin && client.userId > 0) {
+        console.log(`Peer disconnected with userId: ${client.userId}, notifying admins`);
+        
         // Get updated peer list
         const peersList = await getPeersList();
+        console.log(`Updated peer list: ${JSON.stringify(peersList)}`);
         
         // Send update to all admin clients
+        let adminCount = 0;
         clients.forEach((c, socket) => {
           if (c.isAdmin && socket.readyState === WebSocket.OPEN) {
+            adminCount++;
             socket.send(JSON.stringify({
               type: "peers_update",
               payload: {
@@ -755,6 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }));
           }
         });
+        console.log(`Notified ${adminCount} admins about peer disconnection`);
       }
     });
   });
