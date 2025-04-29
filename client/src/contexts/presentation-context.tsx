@@ -124,37 +124,54 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
       });
     };
 
-    socket.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      console.log("WS message:", message);
+    const handleSocketMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log("WS message:", message);
 
-      switch (message.type) {
-        case "session_update":
-          handleSessionUpdate(message.payload);
-          break;
-        case "session_end":
-          handleSessionEnd();
-          break;
-        case "evaluation_update":
-          handleEvaluationUpdate(message.payload);
-          break;
-        case "feedback_update":
-          handleFeedbackUpdate(message.payload);
-          break;
-        case "peers_update":
-          handlePeersUpdate(message.payload);
-          break;
-        case "timer_update":
-          handleTimerUpdate(message.payload);
-          break;
-        case "screen_share_start":
-          handleScreenShareStart();
-          break;
-        case "screen_share_stop":
-          handleScreenShareStop();
-          break;
+        switch (message.type) {
+          case "session_update":
+            handleSessionUpdate(message.payload);
+            break;
+          case "session_end":
+            handleSessionEnd();
+            break;
+          case "evaluation_update":
+            handleEvaluationUpdate(message.payload);
+            break;
+          case "feedback_update":
+            handleFeedbackUpdate(message.payload);
+            break;
+          case "peers_update":
+            handlePeersUpdate(message.payload);
+            break;
+          case "timer_update":
+            handleTimerUpdate(message.payload);
+            break;
+          case "screen_share_start":
+            if (!user?.isAdmin) { // Only show this toast for non-admin users (peers)
+              handleScreenShareStart();
+            }
+            break;
+          case "screen_share_stop":
+            if (!user?.isAdmin) { // Only show this toast for non-admin users (peers)
+              handleScreenShareStop();
+            }
+            break;
+          case "error":
+            toast({
+              title: "Error",
+              description: message.payload?.message || "An error occurred",
+              variant: "destructive",
+            });
+            break;
+        }
+      } catch (error) {
+        console.error("Error handling WebSocket message:", error);
       }
-    });
+    };
+
+    socket.addEventListener("message", handleSocketMessage);
 
     // Request initial state when connecting
     if (connected) {
@@ -163,10 +180,10 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
     return () => {
       if (socket) {
-        socket.removeEventListener("message", () => {});
+        socket.removeEventListener("message", handleSocketMessage);
       }
     };
-  }, [socket, connected, toast]);
+  }, [socket, connected, toast, user]);
 
   // Handle local timer when it's running
   useEffect(() => {
