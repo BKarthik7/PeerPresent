@@ -7,6 +7,7 @@ import { EvaluationPanel } from "@/components/evaluation-panel";
 import { AdminModals } from "@/components/admin-modals";
 import { EvaluationConfirmationModal } from "@/components/evaluation-confirmation-modal";
 import { PeerList } from "@/components/peer-list";
+import { ScreenSharePanel } from "@/components/screen-share-panel";
 
 export default function Home() {
   const { user, isLoading } = useAuth();
@@ -93,8 +94,9 @@ export default function Home() {
                 </div>
               </div>
               
-              <div className="md:col-span-1">
+              <div className="md:col-span-1 space-y-6">
                 <PeerList />
+                <ScreenSharePanel />
               </div>
             </div>
           </div>

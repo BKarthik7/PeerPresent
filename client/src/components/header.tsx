@@ -6,18 +6,11 @@ import { Upload, PlayCircle, MonitorPlay, LogOut } from "lucide-react";
 
 type HeaderProps = {
   onUploadTeams: () => void;
-  onControlPresentation: () => void;
 };
 
-export function Header({ onUploadTeams, onControlPresentation }: HeaderProps) {
+export function Header({ onUploadTeams }: HeaderProps) {
   const { user, logout } = useAuth();
-  const { activeSession, startScreenShare, isScreenSharing } = usePresentation();
-
-  const handleShareScreen = () => {
-    if (!isScreenSharing) {
-      startScreenShare();
-    }
-  };
+  const { activeSession } = usePresentation();
 
   return (
     <header className="bg-white border-b border-border py-2 px-4 shadow-sm">
@@ -25,7 +18,7 @@ export function Header({ onUploadTeams, onControlPresentation }: HeaderProps) {
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-google-sans font-semibold text-foreground">Peer Evaluation System</h1>
           {activeSession && (
-            <Badge variant="success" className="bg-secondary">Active Session</Badge>
+            <Badge variant="secondary" className="bg-secondary">Active Session</Badge>
           )}
         </div>
         
@@ -40,26 +33,6 @@ export function Header({ onUploadTeams, onControlPresentation }: HeaderProps) {
             >
               <Upload className="mr-2 h-4 w-4" />
               Upload Teams
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="border-primary text-primary"
-              onClick={onControlPresentation}
-            >
-              <PlayCircle className="mr-2 h-4 w-4" />
-              Control Presentation
-            </Button>
-            
-            <Button 
-              variant={isScreenSharing ? "secondary" : "default"}
-              size="sm"
-              onClick={handleShareScreen}
-              disabled={!activeSession || isScreenSharing}
-            >
-              <MonitorPlay className="mr-2 h-4 w-4" />
-              {isScreenSharing ? "Sharing Screen" : "Share Screen"}
             </Button>
           </div>
         )}

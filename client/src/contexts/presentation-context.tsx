@@ -210,10 +210,6 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
         throw new Error("Not connected to server");
       }
 
-      if (!activeSession) {
-        throw new Error("No active presentation session");
-      }
-
       // Request screen sharing permission from browser
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
