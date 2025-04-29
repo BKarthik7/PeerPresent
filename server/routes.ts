@@ -746,7 +746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!c.isAdmin && socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
                   type: "offer",
-                  payload: message.payload
+                  payload: data.payload
                 }));
               }
             });
@@ -767,7 +767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (c.isAdmin && socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
                   type: "answer",
-                  payload: message.payload
+                  payload: data.payload
                 }));
               }
             });
@@ -780,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (c.isAdmin && socket.readyState === WebSocket.OPEN) {
                   socket.send(JSON.stringify({
                     type: "ice_candidate",
-                    payload: message.payload
+                    payload: data.payload
                   }));
                 }
               });
@@ -791,7 +791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (!c.isAdmin && socket.readyState === WebSocket.OPEN) {
                   socket.send(JSON.stringify({
                     type: "ice_candidate",
-                    payload: message.payload
+                    payload: data.payload
                   }));
                 }
               });
@@ -828,12 +828,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return;
             }
             
+            // Ensure active session exists
+            if (!activeSession || !activeTeam) {
+              ws.send(JSON.stringify({
+                type: "error",
+                payload: { message: "No active presentation to evaluate" }
+              }));
+              return;
+            }
+            
+            console.log("Starting evaluation for team:", activeTeam.name);
+            
             // Broadcast evaluation start to all peer clients
             clients.forEach((c, socket) => {
               if (!c.isAdmin && socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
                   type: "start_evaluation",
-                  payload: message.payload // Pass along team information
+                  payload: {
+                    teamId: activeTeam.id,
+                    teamName: activeTeam.name,
+                    projectTitle: activeTeam.projectTitle
+                  }
                 }));
               }
             });
