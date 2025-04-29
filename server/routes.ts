@@ -719,7 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return;
             }
             
-            // Broadcast screen share start
+            // Broadcast screen share start to all non-admin clients
             clients.forEach((c, socket) => {
               if (!c.isAdmin && socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
