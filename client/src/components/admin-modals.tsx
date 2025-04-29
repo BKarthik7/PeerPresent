@@ -330,7 +330,10 @@ function PresentationControlModal({ open, setOpen }: { open: boolean; setOpen: (
     timerSeconds,
     isTimerRunning,
     averageScores,
-    peers
+    peers,
+    startScreenShare,
+    stopScreenShare,
+    isScreenSharing
   } = usePresentation();
   
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
