@@ -231,8 +231,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   wss.on('connection', async (ws, req) => {
     console.log('Client connected');
     
+    // Function to get peers list
+    const getPeersList = async (): Promise<{ id: number; name: string }[]> => {
+      const connectedPeers: { id: number; name: string }[] = [];
+      const nonAdminClients = Array.from(clients.values()).filter(c => !c.isAdmin && c.userId > 0);
+      
+      for (const c of nonAdminClients) {
+        try {
+          const peer = await storage.getPeerByUserId(c.userId);
+          if (peer) {
+            connectedPeers.push({
+              id: peer.id,
+              name: peer.name
+            });
+          }
+        } catch (error) {
+          console.error("Error getting peer info:", error);
+        }
+      }
+      
+      return connectedPeers;
+    };
+    
     // Function to send state updates to a client
-    const sendState = (client: WebSocket) => {
+    const sendState = async (client: WebSocket) => {
       if (client.readyState === WebSocket.OPEN) {
         // Send session update if active
         if (activeSession && activeTeam) {
@@ -253,6 +275,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isRunning: isTimerRunning
           }
         }));
+        
+        // If the client is admin, send connected peers info
+        const currentClient = clients.get(client);
+        if (currentClient && currentClient.isAdmin) {
+          const peersList = await getPeersList();
+          
+          client.send(JSON.stringify({
+            type: "peers_update",
+            payload: {
+              peers: peersList
+            }
+          }));
+        }
       }
     };
     
@@ -699,9 +734,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     // Handle disconnection
-    ws.on('close', () => {
+    ws.on('close', async () => {
       console.log('Client disconnected');
+      const client = clients.get(ws);
       clients.delete(ws);
+      
+      // If a peer disconnected, notify all admins
+      if (client && !client.isAdmin && client.userId > 0) {
+        // Get updated peer list
+        const peersList = await getPeersList();
+        
+        // Send update to all admin clients
+        clients.forEach((c, socket) => {
+          if (c.isAdmin && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: "peers_update",
+              payload: {
+                peers: peersList
+              }
+            }));
+          }
+        });
+      }
     });
   });
 
